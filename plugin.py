@@ -1,5 +1,5 @@
 # Manage Synology Surveillane Station
-# $Id: plugin.py 108 2019-10-04 19:59:03Z eric $
+# $Id: plugin.py 127 2020-04-11 17:20:56Z eric $
 #
 
 """
@@ -151,7 +151,11 @@ class SurveillanceStationPlugin:
         self._baseURL='http://%s:%s/webapi/'%(self._addr,self._port)
         self._sid=SID(self._baseURL, self._username,self._password)
         self._homeMode=HomeMode(self._baseURL)
-        #Create server
+        if(self._homeMode):
+            Domoticz.Status("HomeMode: ok")
+        else:
+            Domoticz.Error("HomeMode: ko")
+            #Create server
         self.httpServerConn = Domoticz.Connection(Name="Server Connection", Transport="TCP/IP", Protocol="HTTP", Port=self._cameraPort)
         self.httpServerConn.Listen()
         if not 255 in Devices:
@@ -179,6 +183,7 @@ class SurveillanceStationPlugin:
                 lastId=dbCursor.lastrowid
                 dbCursor.execute("INSERT INTO CamerasActiveDevices (CameraRowID,DevSceneRowID,DevSceneType,DevSceneDelay,DevSceneWhen) VALUES (%d,%d,0,0,0);"%(lastId,Devices[(cam.getId()+1)].ID))
                 dbConn.commit()
+                dbConn.close()
         polling=int(Parameters["Mode5"])
         if polling != 0 and polling<=10:
             Domoticz.Heartbeat(polling)
@@ -207,7 +212,10 @@ class SurveillanceStationPlugin:
             self._sidElapsedTime=0
             self._sid.update()
         if(self._polling):
-            self._homeMode.update(self._sid)
+            if (self._homeMode):
+                self._homeMode.update(self._sid)
+            else:
+                Domoticz.Error("HomeMode update: KO")    
             #Update Camera Status
             self._camerasUpdate()
                     
