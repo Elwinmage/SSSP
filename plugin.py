@@ -82,8 +82,7 @@ class SID:
         self._sid=self.update()
 
     def update(self):
-        r = requests.get(self._baseURL+'auth.cgi?api=SYNO.API.Auth&method=Login&version=3&account='+self._username+'&passwd='+self._password+'&session=SurveillanceStation&format=sid',timeout=7)
-        res=r.json()
+        r = requests.get(self._baseURL+'auth.cgi?api=SYNO.API.Auth&method=Login&version=3&method=login&account='+self._username+'&passwd='+self._password+'&session=FileStation&format=sid',timeout=7)
         if res['success'] == False:
             Domoticz.Error('Can not connect to Synology %s:%s: %d'%(self._addr,self._port,res['error']['code']))
             return None
