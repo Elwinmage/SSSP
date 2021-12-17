@@ -10,7 +10,7 @@
             NEED Domoticz 4.9788 or higher and python 3.
         <h3>Parameters</h3><br />
         <ul>
-          <li>Address: IP of Synology NVR</li>
+          <li>Synology NVR address URL or IP (including protocol http / https)</li>
           <li>Port: Port of Synology NVR</li>
           <li>Username: Username for Synology NVR access</li>
           <li>Password: Password for Synology NVR access</li>
@@ -146,9 +146,9 @@ class SurveillanceStationPlugin:
         self._port=Parameters["Port"]
         self._username=Parameters["Username"]
         self._password=Parameters["Password"]
+        self._baseURL='%s:%s/webapi/'%(self._addr,self._port)
         self._cameraPort=Parameters["Mode1"]
         self._sidRefresh=int(Parameters["Mode2"])
-        self._baseURL='http://%s:%s/webapi/'%(self._addr,self._port)
         self._sid=SID(self._baseURL, self._username,self._password)
         self._homeMode=HomeMode(self._baseURL)
         if(self._homeMode):
