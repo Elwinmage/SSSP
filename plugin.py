@@ -3,14 +3,14 @@
 #
 
 """
-<plugin key="SurveillanceStation" name="Synology Surveillance Station Plugin" author="Morand" version="1.0.1" wikilink="" externallink="">
+<plugin key="SurveillanceStation" name="Synology Surveillance Station Plugin" author="Morand" version="1.0.2" wikilink="" externallink="">
     <description>
         <h2>Synology Surveillance Station</h2><br/>
             Manage Cameras and home mode for Synology Surveillance Station.
             NEED Domoticz 4.9788 or higher and python 3.
         <h3>Parameters</h3><br />
         <ul>
-          <li>Address: IP of Synology NVR</li>
+          <li>Synology NVR address URL or IP (including protocol http / https)</li>
           <li>Port: Port of Synology NVR</li>
           <li>Username: Username for Synology NVR access</li>
           <li>Password: Password for Synology NVR access</li>
@@ -79,13 +79,19 @@ class SID:
         self._username=username
         self._password=password
         self._baseURL=baseURL
+        self._sid=''
         self._sid=self.update()
 
     def update(self):
-        r = requests.get(self._baseURL+'auth.cgi?api=SYNO.API.Auth&method=Login&version=3&method=login&account='+self._username+'&passwd='+self._password+'&session=FileStation&format=sid',timeout=7)
+        try:
+            r = requests.get(self._baseURL+'auth.cgi?api=SYNO.API.Auth&method=Login&version=3&method=login&account='+self._username+'&passwd='+self._password+'&session=FileStation&format=sid',timeout=7)
+            res=r.json()
+        except:
+            Domoticz.Error("Timeout on SID update")
+            return self._sid
         if res['success'] == False:
             Domoticz.Error('Can not connect to Synology %s:%s: %d'%(self._addr,self._port,res['error']['code']))
-            return None
+            return self._sid
         elif res['success'] == True:
             self._sid='&_sid="'+res['data']['sid']+'"'
             Domoticz.Log("Connected to Synology: %s"%(self._sid))
@@ -100,8 +106,12 @@ class HomeMode:
         self._baseURL=baseURL
         
     def update(self,sid):
-        r = requests.get(self._baseURL+'entry.cgi?api="SYNO.SurveillanceStation.HomeMode"&version="1"&method="GetInfo"&need_mobiles=true'+sid.getSid(),timeout=5)
-        res=r.json()
+        try:
+            r = requests.get(self._baseURL+'entry.cgi?api="SYNO.SurveillanceStation.HomeMode"&version="1"&method="GetInfo"&need_mobiles=true'+sid.getSid(),timeout=8)
+            res=r.json()
+        except:
+            Domoticz.Error("Timeout on Home Mode")
+            return
         if res['success'] == True:
             hm=res["data"]["on"]
             if(hm != self._homeMode):
@@ -145,9 +155,9 @@ class SurveillanceStationPlugin:
         self._port=Parameters["Port"]
         self._username=Parameters["Username"]
         self._password=Parameters["Password"]
+        self._baseURL='%s:%s/webapi/'%(self._addr,self._port)
         self._cameraPort=Parameters["Mode1"]
         self._sidRefresh=int(Parameters["Mode2"])
-        self._baseURL='http://%s:%s/webapi/'%(self._addr,self._port)
         self._sid=SID(self._baseURL, self._username,self._password)
         self._homeMode=HomeMode(self._baseURL)
         if(self._homeMode):
@@ -177,7 +187,9 @@ class SurveillanceStationPlugin:
                 dbConn=sqlite3.connect(os.getcwd()+'/domoticz.db')
                 dbCursor=dbConn.cursor()
                 url='/?camId='+str(cam.getId())
-                dbCursor.execute("INSERT INTO Cameras (Name,Address,Port,ImageURL) VALUES (\"%s\",\"%s\",%s,\"%s\");"%(cam.getName(),'localhost', self._cameraPort,url))
+                query=""" INSERT INTO Cameras(Name,Address,Port,ImageURL) VALUES (?,?,?,?) """
+                data=(cam.getName(),'localhost', self._cameraPort,url)
+                dbCursor.execute(query,data)
                 dbConn.commit()
                 lastId=dbCursor.lastrowid
                 dbCursor.execute("INSERT INTO CamerasActiveDevices (CameraRowID,DevSceneRowID,DevSceneType,DevSceneDelay,DevSceneWhen) VALUES (%d,%d,0,0,0);"%(lastId,Devices[(cam.getId()+1)].ID))
@@ -198,7 +210,10 @@ class SurveillanceStationPlugin:
         res=r.json()
         for camInfo in res['data']['cameras']:
             Domoticz.Debug("Camera %s is in mode %d"%(camInfo['detailInfo']['camName'],camInfo["status"]))
-            cam=self._cameras[(camInfo['id']+1)]
+            try:
+                cam=self._cameras[(camInfo['id']+1)]
+            except:
+                Domoticz.Error("Try to update camera %d, but not present in plugin list %s"%(camInfo['id']+1,str(self._cameras)))
             if camInfo["status"] == 0:
                 cam.updateStatus("On")
             else:
