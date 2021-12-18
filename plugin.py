@@ -84,7 +84,7 @@ class SID:
 
     def update(self):
         try:
-            r = requests.get(self._baseURL+'auth.cgi?api=SYNO.API.Auth&method=Login&version=3&account='+self._username+'&passwd='+self._password+'&session=SurveillanceStation&format=sid',timeout=10)
+            r = requests.get(self._baseURL+'auth.cgi?api=SYNO.API.Auth&method=Login&version=3&method=login&account='+self._username+'&passwd='+self._password+'&session=SurveillanceStation&format=sid',timeout=10)
             res=r.json()
         except:
             Domoticz.Error("Timeout on SID update")
